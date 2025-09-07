@@ -1464,6 +1464,27 @@ input, textarea {
     line-height: 1.4;
 }
 
+.loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #667eea;
+    font-size: 1.1rem;
+    font-weight: 600;
+    grid-column: 1 / -1;
+}
+
+.loading:before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 2px solid #667eea;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
 /* أنيميشن toast */
 @keyframes slideIn {
     from {

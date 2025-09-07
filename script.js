@@ -224,40 +224,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 room.gameStarted = true;
             },
             
-            // حفظ البيانات في localStorage (نظام مشترك للغرف)
-            saveToStorage: function() {
+            // حفظ البيانات في التخزين المشترك
+            saveToStorage: async function() {
                 try {
-                    // حفظ الغرف في مفتاح عام لجميع المستخدمين
-                    const globalRooms = {
-                        rooms: Array.from(this.rooms.entries()),
-                        lastUpdate: Date.now()
-                    };
-                    localStorage.setItem('globalGameRooms', JSON.stringify(globalRooms));
+                    // محاولة حفظ في التخزين المشترك أولاً
+                    if (window.sharedStorage) {
+                        const success = await window.sharedStorage.saveRooms(this.rooms);
+                        if (success) {
+                            console.log('تم حفظ البيانات في التخزين المشترك');
+                        }
+                    }
                     
-                    // حفظ بيانات اللاعب الحالي في مفتاح منفصل
+                    // حفظ بيانات اللاعب محلياً
                     const playerData = {
                         currentPlayer: this.currentPlayer
                     };
                     localStorage.setItem('gamePlayerData', JSON.stringify(playerData));
                     
-                    console.log('تم حفظ البيانات في localStorage');
                 } catch (error) {
                     console.error('خطأ في حفظ البيانات:', error);
                 }
             },
             
-            // تحميل البيانات من localStorage
-            loadFromStorage: function() {
+            // تحميل البيانات من التخزين المشترك
+            loadFromStorage: async function() {
                 try {
-                    // تحميل الغرف العامة (مشتركة بين جميع المستخدمين)
-                    const globalData = localStorage.getItem('globalGameRooms');
-                    if (globalData) {
-                        const parsed = JSON.parse(globalData);
-                        this.rooms = new Map(parsed.rooms || []);
-                        console.log('تم تحميل الغرف العامة:', this.rooms.size, 'غرفة');
+                    // تحميل الغرف من التخزين المشترك
+                    if (window.sharedStorage) {
+                        this.rooms = await window.sharedStorage.loadRooms();
+                        console.log('تم تحميل الغرف من التخزين المشترك:', this.rooms.size, 'غرفة');
                     }
                     
-                    // تحميل بيانات اللاعب
+                    // تحميل بيانات اللاعب محلياً
                     const playerData = localStorage.getItem('gamePlayerData');
                     if (playerData) {
                         const parsed = JSON.parse(playerData);
@@ -281,15 +279,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('تم مسح البيانات المحفوظة');
             },
             
-            // تحديث البيانات من التخزين (للحصول على آخر الغرف)
-            refreshFromStorage: function() {
+            // تحديث البيانات من التخزين المشترك (للحصول على آخر الغرف)
+            refreshFromStorage: async function() {
                 try {
-                    const globalData = localStorage.getItem('globalGameRooms');
-                    if (globalData) {
-                        const parsed = JSON.parse(globalData);
-                        // تحديث الغرف بالبيانات الجديدة
-                        this.rooms = new Map(parsed.rooms || []);
-                        console.log('تم تحديث قائمة الغرف:', this.rooms.size, 'غرفة');
+                    if (window.sharedStorage) {
+                        this.rooms = await window.sharedStorage.forceRefresh();
+                        console.log('تم تحديث قائمة الغرف من التخزين المشترك:', this.rooms.size, 'غرفة');
                         return true;
                     }
                 } catch (error) {
@@ -300,9 +295,11 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
-    // تحميل البيانات المحفوظة
+    // تحميل البيانات المحفوظة (async)
     if (roomsSystem.loadFromStorage) {
-        roomsSystem.loadFromStorage();
+        roomsSystem.loadFromStorage().then(() => {
+            console.log('تم تحميل البيانات بنجاح');
+        });
     }
     
     // إعادة تعريف العناصر للتأكد من تحميلها
@@ -1045,28 +1042,39 @@ function logout() {
     showToast('تم تسجيل الخروج');
 }
 
-function refreshRoomsList() {
+async function refreshRoomsList() {
     const roomsList = elements.roomsList;
     if (!roomsList) {
         console.error('عنصر roomsList غير موجود');
         return;
     }
     
-    // تحديث البيانات من التخزين للحصول على آخر الغرف
-    roomsSystem.refreshFromStorage();
-    
-    roomsList.innerHTML = '';
+    // عرض رسالة تحميل
+    roomsList.innerHTML = '<div class="loading">🔄 جاري تحديث قائمة الغرف...</div>';
     
     try {
+        // تحديث البيانات من التخزين المشترك للحصول على آخر الغرف
+        await roomsSystem.refreshFromStorage();
+        
         const rooms = roomsSystem.getAllRooms();
+        
+        // تنظيف الغرف القديمة
+        if (window.sharedStorage) {
+            const cleaned = window.sharedStorage.cleanOldRooms(roomsSystem.rooms);
+            if (cleaned) {
+                await roomsSystem.saveToStorage();
+            }
+        }
+        
+        roomsList.innerHTML = '';
         
         if (rooms.length === 0) {
             roomsList.innerHTML = `
                 <div class="no-rooms">
                     <div class="no-rooms-icon">🏠</div>
                     <h3>لا توجد غرف متاحة حالياً</h3>
-                    <p>جميع الغرف التي يتم إنشاؤها تظهر هنا للجميع</p>
-                    <small>يمكنك إنشاء غرفة جديدة وسيتمكن أصدقاؤك من رؤيتها والانضمام إليها</small>
+                    <p>جميع الغرف التي يتم إنشاؤها تظهر هنا للجميع من أي جهاز</p>
+                    <small>يمكنك إنشاء غرفة جديدة وسيتمكن أصدقاؤك من رؤيتها والانضمام إليها فوراً</small>
                 </div>
             `;
             return;
@@ -1080,7 +1088,7 @@ function refreshRoomsList() {
         });
     } catch (error) {
         console.error('خطأ في تحديث قائمة الغرف:', error);
-        roomsList.innerHTML = '<div class="no-rooms">خطأ في تحميل الغرف</div>';
+        roomsList.innerHTML = '<div class="no-rooms">خطأ في تحميل الغرف - يرجى المحاولة مرة أخرى</div>';
     }
 }
 
@@ -1132,7 +1140,7 @@ function createRoomCard(room) {
     return card;
 }
 
-function createRoom() {
+async function createRoom() {
     const roomName = elements.roomNameInput.value.trim();
     
     if (!roomName || roomName.length < 2) {
@@ -1146,15 +1154,28 @@ function createRoom() {
     }
     
     try {
+        // إظهار حالة التحميل
+        elements.createRoomConfirmBtn.textContent = 'جاري الإنشاء...';
+        elements.createRoomConfirmBtn.disabled = true;
+        
         const roomId = roomsSystem.createRoom(roomName, gameState.currentPlayer);
+        
+        // حفظ في التخزين المشترك
+        await roomsSystem.saveToStorage();
+        
         gameState.currentRoom = roomId;
         
         elements.roomNameInput.value = '';
+        elements.createRoomConfirmBtn.textContent = 'إنشاء الغرفة';
+        elements.createRoomConfirmBtn.disabled = false;
+        
         showScreen('room');
         updateRoomDisplay();
         
-        showToast('تم إنشاء الغرفة بنجاح');
+        showToast('تم إنشاء الغرفة بنجاح - يمكن لأصدقائك رؤيتها الآن');
     } catch (error) {
+        elements.createRoomConfirmBtn.textContent = 'إنشاء الغرفة';
+        elements.createRoomConfirmBtn.disabled = false;
         showToast(error.message);
     }
 }
