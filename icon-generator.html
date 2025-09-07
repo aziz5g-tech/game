@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء أيقونات خلية الحروف</title>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .icon-generator {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .icon-preview {
+            width: 512px;
+            height: 512px;
+            margin: 20px auto;
+            border-radius: 100px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 200px;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .icon-preview::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            border: 8px solid rgba(255,255,255,0.3);
+            border-radius: 80px;
+        }
+        
+        .letter-grid {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            font-size: 40px;
+            opacity: 0.3;
+        }
+        
+        .letter-mini {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .main-letter {
+            position: relative;
+            z-index: 2;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .download-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .download-btn {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        canvas {
+            display: none;
+        }
+        
+        .instructions {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="icon-generator">
+        <h1>مولد أيقونات لعبة خلية الحروف</h1>
+        
+        <div class="instructions">
+            <h3>تعليمات:</h3>
+            <p>هذه الصفحة تساعدك في إنشاء أيقونات اللعبة بأحجام مختلفة مطلوبة للأندرويد. اضغط على الأزرار أدناه لتحميل الأيقونات.</p>
+        </div>
+        
+        <div class="icon-preview" id="iconPreview">
+            <div class="letter-grid">
+                <div class="letter-mini">أ</div>
+                <div class="letter-mini">ب</div>
+                <div class="letter-mini">ت</div>
+                <div class="letter-mini">ث</div>
+                <div class="letter-mini">ج</div>
+                <div class="letter-mini">ح</div>
+                <div class="letter-mini">خ</div>
+                <div class="letter-mini">د</div>
+                <div class="letter-mini">ذ</div>
+            </div>
+            <div class="main-letter">خ</div>
+        </div>
+        
+        <div class="download-buttons">
+            <button class="download-btn" onclick="downloadIcon(72)">72x72</button>
+            <button class="download-btn" onclick="downloadIcon(96)">96x96</button>
+            <button class="download-btn" onclick="downloadIcon(128)">128x128</button>
+            <button class="download-btn" onclick="downloadIcon(144)">144x144</button>
+            <button class="download-btn" onclick="downloadIcon(152)">152x152</button>
+            <button class="download-btn" onclick="downloadIcon(192)">192x192</button>
+            <button class="download-btn" onclick="downloadIcon(384)">384x384</button>
+            <button class="download-btn" onclick="downloadIcon(512)">512x512</button>
+        </div>
+        
+        <canvas id="iconCanvas"></canvas>
+    </div>
+    
+    <script>
+        function downloadIcon(size) {
+            const canvas = document.getElementById('iconCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            // خلفية متدرجة
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // رسم الخلفية
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // رسم دائرة مع حدود
+            const radius = size * 0.4;
+            const centerX = size / 2;
+            const centerY = size / 2;
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = size * 0.02;
+            ctx.stroke();
+            
+            // رسم الحرف الرئيسي
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.4}px Cairo, Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = size * 0.01;
+            ctx.shadowOffsetX = size * 0.005;
+            ctx.shadowOffsetY = size * 0.005;
+            ctx.fillText('خ', centerX, centerY);
+            
+            // رسم شبكة صغيرة في الخلفية
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.font = `${size * 0.08}px Cairo, Arial`;
+            
+            const letters = ['أ', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ'];
+            const gridSize = size * 0.06;
+            const startX = centerX - gridSize * 1.5;
+            const startY = centerY - gridSize * 1.5;
+            
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const x = startX + j * gridSize;
+                    const y = startY + i * gridSize;
+                    ctx.fillText(letters[i * 3 + j], x, y);
+                }
+            }
+            
+            // تحويل إلى blob وتحميل
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}x${size}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
+</body>
+</html>

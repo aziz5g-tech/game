@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- منع التخزين المؤقت -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>خلية الحروف - لعبة الفرق</title>
+    <link rel="stylesheet" href="styles.css?v=2.0">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="خلية الحروف">
+    
+    <!-- Android Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="خلية الحروف">
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="msapplication-navbutton-color" content="#667eea">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#667eea">
+    
+    <!-- Touch Icons -->
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512x512.png">
+</head>
+<body>
+    <div class="game-container">
+        <!-- شاشة تسجيل الدخول -->
+        <div id="login-screen" class="screen active">
+            <div class="logo">
+                <h1>خلية الحروف</h1>
+                <p>لعبة الفرق والمعرفة الجماعية</p>
+            </div>
+            
+            <div class="login-form">
+                <h3>أدخل اسمك للانضمام</h3>
+                <div class="player-input">
+                    <input type="text" id="player-name-input" placeholder="اسم اللاعب" maxlength="20" required>
+                    <button id="join-rooms-btn" class="btn primary" disabled>انضم للغرف</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- شاشة الغرف -->
+        <div id="rooms-screen" class="screen">
+            <div class="rooms-header">
+                <div class="player-info">
+                    <span class="player-avatar">🎮</span>
+                    <span class="player-name">اسم اللاعب</span>
+                </div>
+                <button id="logout-btn" class="btn secondary">تسجيل الخروج</button>
+            </div>
+            
+            <div class="rooms-content">
+                <div class="rooms-actions">
+                    <h2>الغرف المتاحة</h2>
+                    <button id="create-room-btn" class="btn primary">إنشاء غرفة جديدة</button>
+                    <button id="refresh-rooms-btn" class="btn secondary">تحديث القائمة</button>
+                    <button id="refresh-app-btn" class="btn info" onclick="forceRefresh()" title="إعادة تحميل التطبيق">🔄 تحديث التطبيق</button>
+                </div>
+                
+                <div class="rooms-list" id="rooms-list">
+                    <!-- سيتم ملؤها ديناميكياً -->
+                </div>
+            </div>
+        </div>
+
+        <!-- شاشة إنشاء غرفة -->
+        <div id="create-room-screen" class="screen">
+            <div class="create-room-form">
+                <h2>إنشاء غرفة جديدة</h2>
+                <div class="form-group">
+                    <label>اسم الغرفة</label>
+                    <input type="text" id="room-name-input" placeholder="أدخل اسم الغرفة" maxlength="30" required>
+                </div>
+                <div class="form-actions">
+                    <button id="create-room-confirm-btn" class="btn primary">إنشاء الغرفة</button>
+                    <button id="cancel-create-room-btn" class="btn secondary">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- شاشة الغرفة -->
+        <div id="room-screen" class="screen">
+            <div class="room-header">
+                <div class="room-info">
+                    <h2 id="current-room-name" class="room-name">اسم الغرفة</h2>
+                    <div class="room-status">في الانتظار</div>
+                </div>
+                <button id="leave-room-btn" class="btn danger">مغادرة الغرفة</button>
+            </div>
+            
+            <div class="room-content">
+                <div class="teams-preview">
+                    <div class="team-preview green-team-preview">
+                        <h3>الفريق الأخضر</h3>
+                        <div class="team-players-list" id="green-players-list">
+                            <!-- سيتم ملؤها ديناميكياً -->
+                        </div>
+                        <button id="join-green-team-btn" class="btn team-join-btn green">انضم للفريق الأخضر</button>
+                    </div>
+                    
+                    <div class="team-preview red-team-preview">
+                        <h3>الفريق الأحمر</h3>
+                        <div class="team-players-list" id="red-players-list">
+                            <!-- سيتم ملؤها ديناميكياً -->
+                        </div>
+                        <button id="join-red-team-btn" class="btn team-join-btn red">انضم للفريق الأحمر</button>
+                    </div>
+                </div>
+                
+                <div class="spectators-section">
+                    <h4>المشاهدون</h4>
+                    <div class="spectators-list" id="spectators-list">
+                        <!-- سيتم ملؤها ديناميكياً -->
+                    </div>
+                </div>
+                
+                <div class="room-actions">
+                    <button id="start-room-game-btn" class="btn primary" disabled>ابدأ اللعبة</button>
+                    <button id="ready-btn" class="btn secondary">جاهز</button>
+                </div>
+            </div>
+        </div>
+        <!-- شاشة البداية (للوضع القديم فقط) -->
+        <div id="start-screen" class="screen">
+            <div class="logo">
+                <h1>خلية الحروف</h1>
+                <p>لعبة الفرق والمعرفة</p>
+            </div>
+            
+            <div class="team-setup">
+                <div class="team-section green-team">
+                    <h3>الفريق الأخضر</h3>
+                    <div class="player-inputs">
+                        <input type="text" placeholder="اللاعب الأول" class="player-name" data-team="green" data-player="1" required>
+                        <input type="text" placeholder="اللاعب الثاني (اختياري)" class="player-name" data-team="green" data-player="2">
+                        <input type="text" placeholder="اللاعب الثالث (اختياري)" class="player-name" data-team="green" data-player="3">
+                    </div>
+                </div>
+                
+                <div class="team-section red-team">
+                    <h3>الفريق الأحمر</h3>
+                    <div class="player-inputs">
+                        <input type="text" placeholder="اللاعب الأول" class="player-name" data-team="red" data-player="1" required>
+                        <input type="text" placeholder="اللاعب الثاني (اختياري)" class="player-name" data-team="red" data-player="2">
+                        <input type="text" placeholder="اللاعب الثالث (اختياري)" class="player-name" data-team="red" data-player="3">
+                    </div>
+                </div>
+            </div>
+            
+            <button id="start-game-btn" class="btn primary">ابدأ اللعبة</button>
+        </div>
+
+        <!-- شاشة اللعبة الرئيسية -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <div class="team-info green-info">
+                    <div class="team-name">الفريق الأخضر</div>
+                    <div class="team-score">0</div>
+                    <div class="team-players"></div>
+                </div>
+                
+                <div class="current-turn">
+                    <div class="turn-indicator">دور الفريق:</div>
+                    <div class="turn-team">الأخضر</div>
+                </div>
+                
+                <div class="team-info red-info">
+                    <div class="team-name">الفريق الأحمر</div>
+                    <div class="team-score">0</div>
+                    <div class="team-players"></div>
+                </div>
+            </div>
+            
+            <!-- شبكة الحروف 5x5 -->
+            <div class="letters-grid" id="letters-grid">
+                <!-- سيتم إنشاء الحروف ديناميكياً بـ JavaScript -->
+            </div>
+            
+            <div class="game-controls">
+                <button id="reset-game-btn" class="btn secondary">إعادة اللعبة</button>
+                <button id="end-game-btn" class="btn danger">إنهاء اللعبة</button>
+            </div>
+        </div>
+
+        <!-- نافذة السؤال -->
+        <div id="question-modal" class="modal">
+            <div class="modal-content">
+                <div class="question-header">
+                    <span class="selected-letter"></span>
+                    <span class="current-team-name"></span>
+                </div>
+                
+                <div class="question-text"></div>
+                
+                <div class="answer-options">
+                    <button class="answer-btn" data-answer="A"></button>
+                    <button class="answer-btn" data-answer="B"></button>
+                    <button class="answer-btn" data-answer="C"></button>
+                    <button class="answer-btn" data-answer="D"></button>
+                </div>
+                
+                <div class="question-timer">
+                    <div class="timer-bar"></div>
+                    <span class="timer-text">30</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- شاشة النتائج -->
+        <div id="results-screen" class="screen">
+            <div class="results-content">
+                <h2>انتهت اللعبة!</h2>
+                <div class="winner-announcement"></div>
+                <div class="final-scores">
+                    <div class="team-final-score green">
+                        <span class="team-name">الفريق الأخضر</span>
+                        <span class="score">0</span>
+                    </div>
+                    <div class="team-final-score red">
+                        <span class="team-name">الفريق الأحمر</span>
+                        <span class="score">0</span>
+                    </div>
+                </div>
+                <button id="play-again-btn" class="btn primary">العب مرة أخرى</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js?v=2.0"></script>
+    <script src="rooms.js?v=2.0"></script>
+    <script src="questions.js?v=2.0"></script>
+    <script src="script.js?v=2.0"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        // تسجيل Service Worker للـ PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('SW registered with scope: ', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('SW registration failed: ', error);
+                    });
+            });
+        }
+        
+        // إضافة للشاشة الرئيسية
+        let deferredPrompt;
+        const installButton = document.createElement('button');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // إظهار زر التثبيت
+            installButton.textContent = 'تثبيت اللعبة';
+            installButton.className = 'btn primary install-btn';
+            installButton.style.margin = '10px';
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    installButton.style.display = 'none';
+                }
+            });
+            
+            // إضافة الزر لشاشة البداية
+            const startScreen = document.getElementById('start-screen');
+            startScreen.appendChild(installButton);
+        });
+        
+        // إخفاء زر التثبيت بعد التثبيت
+        window.addEventListener('appinstalled', () => {
+            installButton.style.display = 'none';
+            deferredPrompt = null;
+            console.log('PWA was installed');
+        });
+    </script>
+</body>
+</html>
