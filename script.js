@@ -99,55 +99,338 @@ document.addEventListener('DOMContentLoaded', function() {
     // فحص وإجبار التحديث إذا لزم الأمر
     checkForUpdates();
     
-    // التأكد من وجود roomsSystem أو إنشاؤه
-    if (typeof roomsSystem === 'undefined') {
-        console.log('إنشاء roomsSystem بديل...');
-        window.roomsSystem = {
-            rooms: new Map(),
-            currentPlayer: null,
-            
-            createPlayer: function(name) {
-                const player = {
-                    id: Date.now() + Math.random(),
-                    name: name,
-                    joinedAt: new Date()
-                };
-                this.currentPlayer = player;
-                this.saveToStorage(); // حفظ البيانات
-                return player;
-            },
-            
-            createRoom: function(roomName, creator) {
-                const roomId = Date.now().toString();
-                const room = {
-                    id: roomId,
-                    name: roomName,
-                    creator: creator.id,
-                    createdAt: new Date(),
-                    gameStarted: false,
-                    greenTeam: [],
-                    redTeam: [],
-                    spectators: []
-                };
-                
-                this.rooms.set(roomId, room);
-                this.saveToStorage(); // حفظ البيانات
-                return roomId;
-            },
-            
-            getAllRooms: function() {
-                return Array.from(this.rooms.values());
-            },
-            
-            getRoom: function(roomId) {
-                return this.rooms.get(roomId);
-            },
-            
-            joinRoom: function(roomId, player) {
-                const room = this.getRoom(roomId);
-                if (!room) {
-                    throw new Error('الغرفة غير موجودة');
+    // انتظار تحميل Firebase قبل بدء النظام
+    await initializeGameSystem();
+});
+
+// تهيئة نظام اللعبة
+async function initializeGameSystem() {
+    console.log('بدء تهيئة نظام اللعبة...');
+    
+    // التحقق من توفر Firebase
+    let useFirebase = false;
+    if (window.firebaseManager && window.FIREBASE_CONFIG) {
+        try {
+            // اختبار الاتصال بـ Firebase
+            await window.firebaseManager.getRooms();
+            useFirebase = true;
+            console.log('تم الاتصال بـ Firebase بنجاح');
+        } catch (error) {
+            console.warn('فشل الاتصال بـ Firebase، سيتم استخدام النظام المحلي:', error);
+        }
+    }
+    
+    // إنشاء roomsSystem مع Firebase أو النظام البديل
+    window.roomsSystem = {
+        useFirebase: useFirebase,
+        currentPlayer: null,
+        
+        // إنشاء لاعب جديد
+        createPlayer: async function(name) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    const player = await window.firebaseManager.createPlayer(name);
+                    this.currentPlayer = player;
+                    return player;
+                } catch (error) {
+                    console.error('خطأ Firebase، التبديل للنظام المحلي:', error);
+                    this.useFirebase = false;
                 }
+            }
+            
+            // النظام المحلي البديل
+            const player = {
+                id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: name,
+                joinedAt: new Date()
+            };
+            this.currentPlayer = player;
+            localStorage.setItem('currentPlayer', JSON.stringify(player));
+            return player;
+        },
+        
+        // إنشاء غرفة جديدة
+        createRoom: async function(roomName, creator) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    return await window.firebaseManager.createRoom(roomName, creator);
+                } catch (error) {
+                    console.error('خطأ Firebase، التبديل للنظام المحلي:', error);
+                    this.useFirebase = false;
+                }
+            }
+            
+            // النظام المحلي البديل
+            return this.createRoomLocal(roomName, creator);
+        },
+        
+        // إنشاء غرفة محلياً
+        createRoomLocal: function(roomName, creator) {
+            const roomId = `local_${Date.now()}`;
+            const room = {
+                id: roomId,
+                name: roomName,
+                creator: creator.id,
+                createdAt: new Date(),
+                gameStarted: false,
+                greenTeam: [],
+                redTeam: [],
+                spectators: [creator]
+            };
+            
+            const rooms = this.getLocalRooms();
+            rooms[roomId] = room;
+            localStorage.setItem('localRooms', JSON.stringify(rooms));
+            return roomId;
+        },
+        
+        // الحصول على جميع الغرف
+        getAllRooms: async function() {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    const firebaseRooms = await window.firebaseManager.getRooms();
+                    return firebaseRooms;
+                } catch (error) {
+                    console.error('خطأ في تحميل الغرف من Firebase:', error);
+                    this.useFirebase = false;
+                }
+            }
+            
+            // النظام المحلي البديل
+            const localRooms = this.getLocalRooms();
+            return Object.values(localRooms);
+        },
+        
+        // الحصول على غرفة معينة
+        getRoom: async function(roomId) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    return await window.firebaseManager.getRoom(roomId);
+                } catch (error) {
+                    console.error('خطأ في تحميل الغرفة من Firebase:', error);
+                }
+            }
+            
+            // النظام المحلي البديل
+            const rooms = this.getLocalRooms();
+            return rooms[roomId] || null;
+        },
+        
+        // الانضمام للغرفة
+        joinRoom: async function(roomId, player) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    return await window.firebaseManager.joinRoom(roomId, player);
+                } catch (error) {
+                    console.error('خطأ في الانضمام للغرفة Firebase:', error);
+                    throw error;
+                }
+            }
+            
+            // النظام المحلي البديل
+            const rooms = this.getLocalRooms();
+            const room = rooms[roomId];
+            if (!room) {
+                throw new Error('الغرفة غير موجودة');
+            }
+            
+            if (!room.spectators.find(p => p.id === player.id)) {
+                room.spectators.push(player);
+                localStorage.setItem('localRooms', JSON.stringify(rooms));
+            }
+            return room;
+        },
+        
+        // الانضمام للفريق
+        joinTeam: async function(roomId, playerId, teamColor) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    return await window.firebaseManager.joinTeam(roomId, playerId, teamColor);
+                } catch (error) {
+                    console.error('خطأ في الانضمام للفريق Firebase:', error);
+                    throw error;
+                }
+            }
+            
+            // النظام المحلي البديل
+            const rooms = this.getLocalRooms();
+            const room = rooms[roomId];
+            if (!room) {
+                throw new Error('الغرفة غير موجودة');
+            }
+            
+            const allPlayers = [...room.greenTeam, ...room.redTeam, ...room.spectators];
+            const player = allPlayers.find(p => p.id === playerId);
+            
+            if (!player) {
+                throw new Error('اللاعب غير موجود في الغرفة');
+            }
+            
+            // إزالة اللاعب من جميع الفرق
+            room.greenTeam = room.greenTeam.filter(p => p.id !== playerId);
+            room.redTeam = room.redTeam.filter(p => p.id !== playerId);
+            room.spectators = room.spectators.filter(p => p.id !== playerId);
+            
+            // إضافة للفريق المحدد
+            if (teamColor === 'green') {
+                if (room.greenTeam.length >= 3) {
+                    throw new Error('الفريق الأخضر ممتلئ');
+                }
+                room.greenTeam.push(player);
+            } else if (teamColor === 'red') {
+                if (room.redTeam.length >= 3) {
+                    throw new Error('الفريق الأحمر ممتلئ');
+                }
+                room.redTeam.push(player);
+            } else {
+                room.spectators.push(player);
+            }
+            
+            localStorage.setItem('localRooms', JSON.stringify(rooms));
+            return room;
+        },
+        
+        // مغادرة الغرفة
+        leaveRoom: async function(roomId, playerId) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    await window.firebaseManager.leaveRoom(roomId, playerId);
+                    return;
+                } catch (error) {
+                    console.error('خطأ في مغادرة الغرفة Firebase:', error);
+                }
+            }
+            
+            // النظام المحلي البديل
+            const rooms = this.getLocalRooms();
+            const room = rooms[roomId];
+            if (!room) return;
+            
+            room.greenTeam = room.greenTeam.filter(p => p.id !== playerId);
+            room.redTeam = room.redTeam.filter(p => p.id !== playerId);
+            room.spectators = room.spectators.filter(p => p.id !== playerId);
+            
+            const remainingPlayers = room.greenTeam.length + room.redTeam.length + room.spectators.length;
+            
+            if (remainingPlayers === 0 || room.creator === playerId) {
+                delete rooms[roomId];
+            }
+            
+            localStorage.setItem('localRooms', JSON.stringify(rooms));
+        },
+        
+        // بدء اللعبة
+        startGame: async function(roomId) {
+            if (this.useFirebase && window.firebaseManager) {
+                try {
+                    await window.firebaseManager.startGame(roomId);
+                    return;
+                } catch (error) {
+                    console.error('خطأ في بدء اللعبة Firebase:', error);
+                    throw error;
+                }
+            }
+            
+            // النظام المحلي البديل
+            const rooms = this.getLocalRooms();
+            const room = rooms[roomId];
+            if (!room) {
+                throw new Error('الغرفة غير موجودة');
+            }
+            
+            if (room.greenTeam.length === 0 || room.redTeam.length === 0) {
+                throw new Error('يجب أن يكون هناك لاعب واحد على الأقل في كل فريق');
+            }
+            
+            room.gameStarted = true;
+            localStorage.setItem('localRooms', JSON.stringify(rooms));
+        },
+        
+        // الحصول على الغرف المحلية
+        getLocalRooms: function() {
+            try {
+                const stored = localStorage.getItem('localRooms');
+                return stored ? JSON.parse(stored) : {};
+            } catch (error) {
+                console.error('خطأ في تحميل الغرف المحلية:', error);
+                return {};
+            }
+        },
+        
+        // تحديث من التخزين
+        refreshFromStorage: async function() {
+            // لا حاجة لتحديث مع Firebase حيث البيانات محدثة في الوقت الفعلي
+            if (this.useFirebase) {
+                return true;
+            }
+            
+            // تحديث النظام المحلي
+            return true;
+        },
+        
+        // حفظ للتخزين (للتوافق مع النظام القديم)
+        saveToStorage: function() {
+            // مع Firebase لا حاجة لحفظ يدوي
+            if (this.useFirebase) {
+                return;
+            }
+            
+            // حفظ اللاعب الحالي
+            if (this.currentPlayer) {
+                localStorage.setItem('currentPlayer', JSON.stringify(this.currentPlayer));
+            }
+        },
+        
+        // تحميل من التخزين
+        loadFromStorage: function() {
+            try {
+                const stored = localStorage.getItem('currentPlayer');
+                if (stored) {
+                    this.currentPlayer = JSON.parse(stored);
+                }
+                return true;
+            } catch (error) {
+                console.error('خطأ في تحميل بيانات اللاعب:', error);
+                return false;
+            }
+        }
+    };
+    
+    // تحميل بيانات اللاعب المحفوظة
+    roomsSystem.loadFromStorage();
+    
+    // إعداد مستمعي الأحداث
+    setupEventListeners();
+    console.log('تم إعداد أحداث العناصر');
+    
+    // إعداد تحديث دوري للغرف (للنظام المحلي فقط)
+    if (!roomsSystem.useFirebase) {
+        setInterval(() => {
+            if (screens.rooms && screens.rooms.classList.contains('active')) {
+                refreshRoomsList();
+            }
+        }, 10000);
+    }
+    
+    // عرض الشاشة المناسبة
+    setTimeout(() => {
+        try {
+            const savedPlayer = roomsSystem.currentPlayer;
+            if (savedPlayer && savedPlayer.name) {
+                gameState.currentPlayer = savedPlayer;
+                showScreen('rooms');
+                refreshRoomsList();
+                console.log('تم عرض شاشة الغرف للاعب المحفوظ:', savedPlayer.name);
+            } else {
+                showScreen('login');
+                console.log('تم عرض شاشة تسجيل الدخول');
+            }
+        } catch (error) {
+            console.error('خطأ في عرض الشاشة:', error);
+            showScreen('login');
+        }
+    }, 500);
+}
                 
                 if (!room.spectators.find(p => p.id === player.id)) {
                     room.spectators.push(player);
