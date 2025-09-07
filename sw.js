@@ -1,13 +1,12 @@
 // Service Worker لتطبيق خلية الحروف
-const CACHE_NAME = 'word-cell-game-v2.0.0';
+const CACHE_NAME = 'word-cell-game-v2.1.0';
 const urlsToCache = [
   './',
   './index.html',
-  './styles.css?v=2.0',
-  './script.js?v=2.0',
+  './styles.css?v=2.1',
+  './script.js?v=2.1',
   './questions.js?v=2.0',
   './config.js?v=2.0',
-  './rooms.js?v=2.0',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap'
 ];

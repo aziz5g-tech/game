@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <title>خلية الحروف - لعبة الفرق</title>
-    <link rel="stylesheet" href="styles.css?v=2.0">
+    <link rel="stylesheet" href="styles.css?v=2.1">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- PWA Manifest -->
@@ -66,6 +66,10 @@
             <div class="rooms-content">
                 <div class="rooms-actions">
                     <h2>الغرف المتاحة</h2>
+                    <div class="auto-refresh-info">
+                        <span class="refresh-icon">🔄</span>
+                        <span class="refresh-text">تتحدث القائمة تلقائياً كل 10 ثوان</span>
+                    </div>
                     <button id="create-room-btn" class="btn primary">إنشاء غرفة جديدة</button>
                     <button id="refresh-rooms-btn" class="btn secondary">تحديث القائمة</button>
                     <button id="refresh-app-btn" class="btn info" onclick="forceRefresh()" title="إعادة تحميل التطبيق">🔄 تحديث التطبيق</button>
@@ -81,6 +85,14 @@
         <div id="create-room-screen" class="screen">
             <div class="create-room-form">
                 <h2>إنشاء غرفة جديدة</h2>
+                
+                <div class="info-box">
+                    <div class="info-icon">ℹ️</div>
+                    <div class="info-text">
+                        <strong>ملاحظة:</strong> ستكون الغرفة مرئية لجميع اللاعبين الآخرين ويمكنهم الانضمام إليها.
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label>اسم الغرفة</label>
                     <input type="text" id="room-name-input" placeholder="أدخل اسم الغرفة" maxlength="30" required>
@@ -243,7 +255,7 @@
     <script src="config.js?v=2.0"></script>
     <script src="rooms.js?v=2.0"></script>
     <script src="questions.js?v=2.0"></script>
-    <script src="script.js?v=2.0"></script>
+    <script src="script.js?v=2.1"></script>
     
     <!-- Service Worker Registration -->
     <script>
